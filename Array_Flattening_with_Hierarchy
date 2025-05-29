@@ -1,0 +1,109 @@
+/*
+{
+    "student": {
+        "id":1,
+        "info": {
+            "name": "Alice Johnson",
+            "age": 20
+        },
+        "courses": [
+            {
+                "course_name": "maths",
+                "details": {
+                    "grade": "A",
+                    "credits": 3
+                }
+            },
+            {
+                "course_name": "physics",
+                "details": {
+                    "grade": "B",
+                    "credits": 4
+                }
+            }
+        ]
+    }
+
+}
+*/
+
+USE SCHEMA JSON_DB.PUBLIC;
+
+-- create a JSON table with an array value
+CREATE OR REPLACE TABLE json_table_array_h2
+(
+data VARIANT
+);
+
+-- Load the JSON file into the table
+INSERT INTO json_table_array_h2 (data)
+SELECT(PARSE_JSON('{
+    "student": {
+        "id":1,
+        "info": {
+            "name": "Alice Johnson",
+            "age": 20
+        },
+        "courses": [
+            {
+                "course_name": "maths",
+                "details": {
+                    "grade": "A",
+                    "credits": 3
+                }
+            },
+            {
+                "course_name": "physics",
+                "details": {
+                    "grade": "B",
+                    "credits": 4
+                }
+            }
+        ]
+    }
+
+}'));
+
+SELECT * FROM json_table_array_h2;
+
+-- flatten table
+SELECT
+data:student:id::integer AS student_id,
+data:student:info:name::string AS student_name,
+data:student:info:age::integer AS student_age,
+data:student:courses::string AS student_courses
+FROM json_table_array_h2;
+
+-- flatten courses_array in table
+SELECT
+data:student:id::integer AS student_id,
+data:student:info:name::string AS student_name,
+data:student:info:age::integer AS student_age,
+courses.value
+FROM json_table_array_h2,
+LATERAL FLATTEN (input=>data:student:courses) AS courses;
+
+-- flatten values from courses_array in table
+SELECT
+data:student:id::integer AS student_id,
+data:student:info:name::string AS student_name,
+data:student:info:age::integer AS student_age,
+courses.value:course_name::string AS course_name,
+courses.value:details:grade::string AS grade,
+courses.value:details:credits::integer AS credit,
+FROM json_table_array_h2,
+LATERAL FLATTEN (input=>data:student:courses) AS courses;
+
+-- create flatten table
+CREATE OR REPLACE TABLE json_table_array_h2_flatten AS
+SELECT
+data:student:id::integer AS student_id,
+data:student:info:name::string AS student_name,
+data:student:info:age::integer AS student_age,
+courses.value:course_name::string AS course_name,
+courses.value:details:grade::string AS grade,
+courses.value:details:credits::integer AS credit,
+FROM json_table_array_h2,
+LATERAL FLATTEN (input=>data:student:courses) AS courses;
+
+SELECT * FROM json_table_array_h2_flatten;

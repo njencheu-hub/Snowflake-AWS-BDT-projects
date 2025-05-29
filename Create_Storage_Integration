@@ -1,0 +1,49 @@
+-- Set the Roles, Warehouse, and Databases
+USE ROLE ACCOUNTADMIN;
+
+USE WAREHOUSE COMPUTE_WH;
+
+USE SCHEMA MYDB.MYSCHEMA;
+
+-- Create user table
+CREATE OR REPLACE TABLE user (
+id INTEGER,
+name VARCHAR(50),
+location VARCHAR(50),
+email VARCHAR(50) 
+);
+
+-- Create a storage integration with s3 and IAM role
+CREATE OR REPLACE STORAGE INTEGRATION s3_int
+TYPE = EXTERNAL_STAGE
+STORAGE_PROVIDER = 'S3'
+ENABLED = TRUE
+STORAGE_AWS_ROLE_ARN = 'arn:aws:iam::505999909011:role/snowflakerole'
+STORAGE_ALLOWED_LOCATIONS = ('s3://georgie-dea-bucket/');
+
+-- Describe the storage integration
+DESC INTEGRATION s3_int;
+
+-- Create CSV file format
+CREATE OR REPLACE FILE FORMAT CSV_FORMAT
+TYPE = 'CSV'
+FIELD_DELIMITER = ','
+RECORD_DELIMITER ='\n'
+SKIP_HEADER = 1;
+
+-- Create an external s3 stage
+CREATE OR REPLACE STAGE my_s3_stage
+STORAGE_INTEGRATION = s3_int
+URL = 's3://georgie-dea-bucket/'
+FILE_FORMAT = CSV_FORMAT;
+
+-- Access the external stage
+list @my_s3_stage;
+
+-- Load data to the user table without a file format
+COPY INTO user
+FROM @my_s3_stage
+FILE_FORMAT = (FORMAT_NAME = CSV_FORMAT);
+
+-- Select data from the table
+SELECT * FROM user;

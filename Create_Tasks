@@ -1,0 +1,118 @@
+-- Set the Roles, Warehouse, and Databases
+USE ROLE ACCOUNTADMIN;
+
+USE WAREHOUSE COMPUTE_WH;
+
+USE SCHEMA MYDB.MYSCHEMA;
+
+-- ****Running SQL without Task****
+
+-- Create a source table
+CREATE OR REPLACE TABLE source_table (
+    id INT,
+    name VARCHAR,
+    created_date DATE
+);
+
+-- Insert some records in source_table
+INSERT INTO source_table VALUES
+    (1, 'Chaos', '2023-12-11'),
+    (2, 'Genius', '2024-07-04');
+
+-- Select data from source_table1
+SELECT * FROM source_table;
+
+-- Create a target table
+CREATE OR REPLACE TABLE target_table (
+    id INT,
+    name VARCHAR,
+    created_date DATE,
+    created_day VARCHAR,
+    created_month VARCHAR,
+    created_year VARCHAR   
+);
+
+-- Insect data target_table manually
+
+INSERT INTO target_table
+SELECT
+    a.id,
+    a.name,
+    a.created_date,
+    DAY(a.created_date) AS created_day,
+    MONTH(a.created_date) AS created_month,
+    YEAR(a.created_date) AS created_year
+FROM source_table a
+LEFT JOIN target_table b
+ON a.id = b.id
+WHERE b.id IS NULL;
+
+-- Select data from target table
+SELECT * FROM target_table;
+
+-- Insect new records
+INSERT INTO source_table VALUES
+    (3, 'Elan', '2022-02-04');
+
+-- **** Execute SQL with Task****
+    
+-- Create a source table
+CREATE OR REPLACE TABLE source_table (
+    id INT,
+    name VARCHAR,
+    created_date DATE
+);
+
+-- Insert some records in source_table
+INSERT INTO source_table VALUES
+    (1, 'Chaos', '2023-12-11'),
+    (2, 'Genius', '2024-07-04');
+
+-- Select data from source_table
+SELECT * FROM source_table;
+
+-- Create a target table
+CREATE OR REPLACE TABLE target_table (
+    id INT,
+    name VARCHAR,
+    created_date DATE,
+    created_day VARCHAR,
+    created_month VARCHAR,
+    created_year VARCHAR   
+);
+
+-- Insert data into target table through task
+CREATE OR REPLACE TASK my_task
+WAREHOUSE = COMPUTE_WH
+SCHEDULE = '1 MINUTE'
+AS
+INSERT INTO target_table
+SELECT
+    a.id,
+    a.name,
+    a.created_date,
+    DAY(a.created_date) AS created_day,
+    MONTH(a.created_date) AS created_month,
+    YEAR(a.created_date) AS created_year
+FROM source_table a
+LEFT JOIN target_table b
+ON a.id = b.id
+WHERE b.id IS NULL;
+
+-- Show tasks
+SHOW TASKS;
+
+-- Alter the task to execute
+ALTER TASK my_task RESUME;
+
+ALTER TASK my_task SUSPEND;
+
+-- Check the task status
+SELECT * FROM TABLE (information_schema.TASK_HISTORY(TASK_NAME => 'my_task'));
+
+-- Select data from target table
+SELECT * FROM target_table;
+
+-- Insect new records
+INSERT INTO source_table VALUES
+    (3, 'Elan', '2022-02-04');

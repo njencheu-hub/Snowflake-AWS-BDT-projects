@@ -1,0 +1,63 @@
+/*
+{
+    "name": "Jane Doe",
+    "age": 28,
+    "is_student": FALSE,
+    "hobbies": [
+        "reading",
+        "cycling",
+        "cooking"
+    ]
+
+}
+*/
+
+USE SCHEMA JSON_DB.PUBLIC;
+
+-- create a JSON table with an array value
+CREATE OR REPLACE TABLE json_table_array
+(
+data VARIANT
+);
+
+-- Load the JSON file into the table
+INSERT INTO json_table_array (data)
+SELECT(PARSE_JSON('{
+    "name": "Jane Doe",
+    "age": 28,
+    "is_student": FALSE,
+    "hobbies": [
+        "reading",
+        "cycling",
+        "cooking"
+    ]
+
+}'));
+
+SELECT * FROM json_table_array;
+
+-- flatten table
+SELECT
+data: name::string AS name,
+data: age::integer AS age,
+data: is_student::boolean AS is_student_flag,
+data: hobbies::array AS hobbies
+FROM json_table_array;
+
+-- flatten the array in table
+SELECT
+data: name::string AS name,
+data: age::integer AS age,
+data: is_student::boolean AS is_student_flag,
+hobby.*
+FROM json_table_array,
+LATERAL FLATTEN (input=>data:hobbies) AS hobby;
+
+-- flatten the array in table
+SELECT
+data: name::string AS name,
+data: age::integer AS age,
+data: is_student::boolean AS is_student_flag,
+hobby.value::string AS hobby
+FROM json_table_array,
+LATERAL FLATTEN (input=>data:hobbies) AS hobby;

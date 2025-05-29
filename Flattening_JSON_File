@@ -1,0 +1,26 @@
+-- View unflattened json_table
+SELECT * FROM JSON_DB.PUBLIC.JSON_TABLE;
+
+-- Flatten Query
+SELECT 
+data:name,
+data:city,
+data:age
+FROM JSON_DB.PUBLIC.JSON_TABLE;
+
+-- Include the column headers
+SELECT 
+data:name::string as name,
+data:city::string as city,
+data:age::integer as age
+FROM JSON_DB.PUBLIC.JSON_TABLE;
+
+-- Store this data in a flattened table
+CREATE OR REPLACE TABLE JSON_DB.PUBLIC.JSON_TABLE_FLATTEN AS
+SELECT 
+data:name::string as name,
+data:city::string as city,
+data:age::integer as age
+FROM JSON_DB.PUBLIC.JSON_TABLE;
+
+SELECT * FROM JSON_DB.PUBLIC.JSON_TABLE_FLATTEN;

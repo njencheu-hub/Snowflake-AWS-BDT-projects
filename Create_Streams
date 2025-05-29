@@ -1,0 +1,180 @@
+-- Set the Roles, Warehouse, and Databases
+USE ROLE ACCOUNTADMIN;
+
+USE WAREHOUSE COMPUTE_WH;
+
+USE SCHEMA MYDB.MYSCHEMA;
+
+-- *****Standard Stream******
+
+-- Create a source table
+CREATE OR REPLACE TABLE source_table1 (
+    id INT,
+    name VARCHAR,
+    created_date DATE
+);
+
+-- SELECT * FROM source_table1;
+
+-- Insert some records in source_table1
+INSERT INTO source_table1 VALUES
+    (1, 'Chaos', '2023-12-11'),
+    (2, 'Genius', '2023-12-11');
+    
+-- Create a standard stream on the table
+CREATE OR REPLACE STREAM standard_stream ON TABLE source_table1;
+
+-- Select data from source_table1
+SELECT * FROM source_table1;
+
+-- Select data from standard_stream
+SELECT * FROM standard_stream;
+
+-- Insect new records
+INSERT INTO source_table1 VALUES
+    (3, 'Johnny', '2023-12-11');
+
+-- Select data from the table
+SELECT * FROM source_table1;
+
+-- Select data from standard_stream
+SELECT * FROM standard_stream;
+
+-- Delete some records
+DELETE FROM source_table1
+WHERE id = 2;
+
+-- Select data from the table
+SELECT * FROM source_table1;
+
+-- Select data from standard_stream
+SELECT * FROM standard_stream;
+
+-- Update the source table
+UPDATE source_table1 
+SET name = 'Oumi'
+WHERE id = 1;
+
+-- Select data from the table
+SELECT * FROM source_table1;
+
+-- Select data from standard_stream
+SELECT * FROM standard_stream;
+
+-- *****Append-Only Stream*****
+
+-- Create a source table
+CREATE OR REPLACE TABLE source_table2 (
+    id INT,
+    name VARCHAR,
+    created_date DATE
+);
+
+-- SELECT * FROM source_table2;
+
+-- Insert some records in source_table2
+INSERT INTO source_table2 VALUES
+    (1, 'Chaos', '2023-12-11'),
+    (2, 'Genius', '2023-12-11');
+    
+-- Create a append_only stream on the table
+CREATE OR REPLACE STREAM append_only_stream 
+ON TABLE source_table2
+APPEND_ONLY = TRUE;
+
+-- Select data from source_table2
+SELECT * FROM source_table2;
+
+-- Select data from append_only_stream
+SELECT * FROM append_only_stream;
+
+-- Insect new records
+INSERT INTO source_table2 VALUES
+    (3, 'Johnny', '2023-12-11');
+
+-- Select data from source_table2
+SELECT * FROM source_table2;
+
+-- Select data from append_only_stream
+SELECT * FROM append_only_stream;
+
+-- Update the source table
+UPDATE source_table2 
+SET name = 'Oumi'
+WHERE id = 1;
+
+-- Select data from source_table2
+SELECT * FROM source_table2;
+
+-- Select data from append_only_stream
+SELECT * FROM append_only_stream;
+
+-- ***** How to use the stream in ETL process *****
+
+-- Create a target table
+CREATE OR REPLACE TABLE target_table2 (
+    id INT,
+    name VARCHAR,
+    created_date DATE
+);
+
+-- Select data from target_table2
+SELECT * FROM target_table2;
+
+-- Select data from append_only_stream
+SELECT * FROM append_only_stream;
+
+-- Insert into source_table2
+INSERT INTO source_table2 VALUES
+    (4, 'Rock', '2023-12-11');
+
+-- Select data from source_table2
+SELECT * FROM source_table2;
+
+-- Select data from append_only_stream
+SELECT * FROM append_only_stream;
+
+-- Insert into target_table2
+INSERT INTO target_table2
+SELECT id, name, created_date
+FROM append_only_stream;
+
+-- Select data from append_only_stream
+SELECT * FROM append_only_stream;
+
+-- Select data from target_table2
+SELECT * FROM target_table2;
+
+-- Insert into source_table2
+INSERT INTO source_table2 VALUES
+    (5, 'Sam', '2023-12-11');
+
+-- Select data from source_table2
+SELECT * FROM source_table2;
+
+-- Select data from append_only_stream
+SELECT * FROM append_only_stream;
+
+-- Insert into target_table2
+INSERT INTO target_table2
+SELECT id, name, created_date
+FROM append_only_stream;
+
+-- Select data from source_table2
+SELECT * FROM source_table2;
+
+-- Select data from append_only_stream
+SELECT * FROM append_only_stream;
+
+-- Select data from target_table2
+SELECT * FROM target_table2;
+
+-- **** Insert only stream****
+
+CREATE EXTERNAL TABLE ext_table
+LOCATION = @my_aws_stage
+FILE_FORMAT = my_format;
+
+CREATE STREAM my_ext_stream
+ON EXTERNAL TABLE ext_table
+INSERT_ONLY = TRUE;

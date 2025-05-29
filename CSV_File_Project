@@ -1,0 +1,309 @@
+/*
+Structured Data + Internal Stage + Copy Command + Data Transformation
+Project Overview
+In this mini project, you will:
+Load employee data from a CSV file into a raw table in Snowflake using the internal stage.
+Perform complex transformations on the raw data
+Load the transformed data into a new transformed table for further analysis.
+
+Objectives
+Learn how to work with Snowflake's internal stages for file storage.
+Use the COPY INTO command to load structured data into the Snowflake table .
+Perform data transformations in SQL.
+Set up raw and transformed tables in Snowflake for analytics purposes.
+
+Tools/Technologies Used
+Snowflake: Cloud-based data warehouse
+Snowflake Web UI: SQL execution environment
+CSV File: Sample Employee data
+*/
+
+USE ROLE ACCOUNTADMIN;
+
+USE WAREHOUSE COMPUTE_WH;
+
+/*
+Create a Database & Schema
+
+Database : EMPLOYEE_DATA
+Schema : RAW_DATA
+Schema : TRANSFORMED_DATA
+*/
+
+CREATE OR REPLACE DATABASE EMPLOYEE_DATA;
+
+CREATE OR REPLACE SCHEMA RAW_DATA;
+
+CREATE OR REPLACE SCHEMA TRANSFORMED_DATA;
+
+/* 
+Create Raw Table in the RAW_DATA schema
+
+Table : 
+Database: EMPLOYEE_DATA
+Schema: RAW_DATA
+Name: EMPLOYEE_RAW 
+Table structure
+EMPLOYEE_ID STRING
+FIRST_NAME STRING
+LAST_NAME STRING
+DEPARTMENT STRING
+SALARY DECIMAL(10,2)
+HIRE_DATE DATE
+LOCATION STRING
+*/
+
+USE SCHEMA RAW_DATA;
+
+CREATE OR REPLACE TABLE EMPLOYEE_RAW
+(
+EMPLOYEE_ID STRING,
+FIRST_NAME STRING,
+LAST_NAME STRING,
+DEPARTMENT STRING,
+SALARY DECIMAL(10,2),
+HIRE_DATE DATE,
+LOCATION STRING
+);
+
+SELECT * FROM EMPLOYEE_RAW;
+
+/*
+Create Transformed Table in the TRANSFORMED_DATA schema
+
+Table : 
+Database: EMPLOYEE_DATA
+Schema: TRANSFORMED_DATA
+Name: EMPLOYEE_TRANSFORMED 
+
+Table structure:
+EMPLOYEE_ID STRING
+FULL_NAME STRING
+DEPARTMENT STRING
+ANNUAL_SALARY DECIMAL(10, 2)
+HIRE_DATE DATE
+EXPERIENCE_LEVEL STRING
+TENURE_DAYS INTEGER
+STATE STRING
+COUNTRY STRING
+BONUS_ELIGIBILITY STRING
+HIGH_POTENTIAL_FLAG STRING
+
+*/
+
+USE SCHEMA TRANSFORMED_DATA;
+
+CREATE OR REPLACE TABLE EMPLOYEE_TRANSFORMED
+(
+EMPLOYEE_ID STRING,
+FULL_NAME STRING,
+DEPARTMENT STRING,
+ANNUAL_SALARY DECIMAL(10, 2),
+HIRE_DATE DATE,
+EXPERIENCE_LEVEL STRING,
+TENURE_DAYS INTEGER,
+STATE STRING,
+COUNTRY STRING,
+BONUS_ELIGIBILITY STRING,
+HIGH_POTENTIAL_FLAG STRING
+);
+
+SELECT * FROM EMPLOYEE_TRANSFORMED;
+
+/*
+Upload the CSV File to an Internal Stage
+
+Create an Internal Stage in the RAW_DATA schema
+Database: EMPLOYEE_DATA
+Schema: RAW_DATA
+Name: EMPLOYEE_STAGE
+*/
+USE SCHEMA RAW_DATA;
+
+CREATE OR REPLACE STAGE EMPLOYEE_STAGE;
+
+-- Upload the employee csv data file in the internal stage
+-- Use Snowfale Web UI for this step
+/*
+On the left menu, click "Data"
+Navigate to your database → schema -> stage
+Click "Upload Files"
+Select your .csv file from your computer
+Upload it 
+*/
+
+-- List the file in the internal stage
+list @EMPLOYEE_STAGE;
+
+/*
+Load Data from the Stage into the Raw Table
+To load the raw employee data into the EMPLOYEE_RAW table, 
+use the COPY INTO command
+*/
+
+-- List the file in the internal stage
+list @EMPLOYEE_STAGE;
+
+COPY INTO EMPLOYEE_RAW
+FROM @employee_stage/employee_data.csv
+file_format = (TYPE = 'CSV' SKIP_HEADER = 1);
+
+SELECT * FROM EMPLOYEE_RAW;
+
+/*
+Perform Data Transformations and insert data into the Transformed Table
+
+1. Full Name: Concatenate first_name and last_name.
+2. Annual Salary: Multiply the monthly salary by 12.
+3. Experience Level: Classify employees based on the hire date.
+For example:
+    New Hire: Less than 1 year.
+    Mid-level: 1 to 5 years.
+    Senior: More than 5 years.
+4. Employee Tenure: Calculate how long an employee has been 
+with the company based on the hire_date in days
+5. State: Fetch the value before the hyphen(-) in the location column
+6. Country: Fetch the value after the hyphen(-) in the location column
+7. Employee's Eligibility for Bonus: For example, 
+employees with a salary greater than $ 10,000 are eligible for a bonus.
+8. Flagging High-Potential Employees: Flag employees who have been with the company
+for more than 3 years.
+*/
+
+SELECT
+    employee_id,
+    CONCAT(first_name,' ',last_name) AS full_name,
+    department,
+    (12 * salary) AS annual_salary,
+    hire_date,
+    CASE
+        WHEN DATEDIFF(YEAR, HIRE_DATE, CURRENT_DATE) < 1 THEN 'New Hire'
+        WHEN DATEDIFF(YEAR, HIRE_DATE, CURRENT_DATE) BETWEEN 1 AND 5 THEN 'Mid-level'
+        ELSE 'Senior'
+    END AS experience_level,
+    DATEDIFF(DAY, HIRE_DATE, CURRENT_DATE) AS tenure_days,
+    SPLIT_PART(location, '-', 1) AS state,
+    SPLIT_PART(location, '-', 2) AS country,
+    CASE
+        WHEN salary > 10000.00 THEN 'Yes'
+        ELSE 'No'
+    END AS BONUS_ELIGIBILITY,
+    CASE
+        WHEN DATEDIFF(YEAR, HIRE_DATE, CURRENT_DATE) > 3 THEN 'High'
+        ELSE 'Low'
+    END AS HIGH_POTENTIAL_FLAG
+FROM EMPLOYEE_RAW
+LIMIT 10;
+
+-- insert data into the Transformed Table
+INSERT INTO TRANSFORMED_DATA.EMPLOYEE_TRANSFORMED
+(
+  EMPLOYEE_ID,
+  FULL_NAME,
+  DEPARTMENT,
+  ANNUAL_SALARY,
+  HIRE_DATE,
+  EXPERIENCE_LEVEL,
+  TENURE_DAYS,
+  STATE,
+  COUNTRY,
+  BONUS_ELIGIBILITY,
+  HIGH_POTENTIAL_FLAG
+)
+SELECT
+    employee_id,
+    CONCAT(first_name,' ',last_name) AS full_name,
+    DEPARTMENT,
+    12 * salary AS annual_salary,
+    hire_date,
+    CASE
+        WHEN DATEDIFF(YEAR, HIRE_DATE, CURRENT_DATE) < 1 THEN 'New Hire'
+        WHEN DATEDIFF(YEAR, HIRE_DATE, CURRENT_DATE) BETWEEN 1 AND 5 THEN 'Mid-level'
+        ELSE 'Senior'
+    END AS experience_level,
+    DATEDIFF(DAY, HIRE_DATE, CURRENT_DATE) AS tenure_days,
+    SPLIT_PART(location, '-', 1) AS state,
+    SPLIT_PART(location, '-', 2) AS country,
+    CASE
+        WHEN salary > 10000.00 THEN 'Yes'
+        ELSE 'No'
+    END AS BONUS_ELIGIBILITY,
+    CASE
+        WHEN DATEDIFF(YEAR, HIRE_DATE, CURRENT_DATE) > 3 THEN 'High'
+        ELSE 'Low'
+    END AS HIGH_POTENTIAL_FLAG
+FROM EMPLOYEE_RAW;
+
+SELECT * FROM TRANSFORMED_DATA.EMPLOYEE_TRANSFORMED;
+
+/*
+Data Analysis on the transformed data
+
+Employee Count by Department
+Provide count of employees by country
+Extract employees who were hired within 12 months
+Extract the top 10% of employees by salary
+Calculate the total salary expense per department for each year.
+Determine how many employees with 5+ years with company
+*/
+
+USE SCHEMA TRANSFORMED_DATA; 
+
+-- Employee Count by Department
+SELECT
+    DEPARTMENT,
+    COUNT(EMPLOYEE_ID) AS num_employees
+FROM EMPLOYEE_TRANSFORMED
+GROUP BY DEPARTMENT;
+
+-- Provide the Count of employees by country
+SELECT
+    COUNTRY,
+    COUNT(*) AS num_employees
+FROM EMPLOYEE_TRANSFORMED
+GROUP BY COUNTRY
+ORDER BY num_employees DESC;
+
+-- Extract employees who were hired within 12 months
+SELECT 
+    COUNT(*) AS num_employees_within_last_12 
+FROM EMPLOYEE_TRANSFORMED
+WHERE DATEDIFF(MONTH, HIRE_DATE, CURRENT_DATE) < 12;
+
+-- Extract the top 10% of employees by salary
+
+-- NTILE(10) splits all employees into 10 equal-sized buckets (deciles)
+SELECT 
+    FULL_NAME,
+    ANNUAL_SALARY,
+    NTILE(10) OVER (ORDER BY annual_salary DESC) AS salary_decile
+FROM EMPLOYEE_TRANSFORMED;
+
+-- use it in a CTE and extract the 1st decile
+WITH ranked_employees AS (
+  SELECT 
+    FULL_NAME,
+    ANNUAL_SALARY,
+    NTILE(10) OVER (ORDER BY annual_salary DESC) AS salary_decile
+  FROM EMPLOYEE_TRANSFORMED
+)
+SELECT
+    FULL_NAME,
+    ANNUAL_SALARY
+FROM ranked_employees
+WHERE salary_decile = 1;
+
+-- Calculate the total salary expense per department for each year.
+SELECT
+    DEPARTMENT,
+    YEAR(HIRE_DATE) AS hire_year,
+    SUM(ANNUAL_SALARY) AS total_salary_expense
+FROM EMPLOYEE_TRANSFORMED
+GROUP BY DEPARTMENT, hire_year
+ORDER BY DEPARTMENT, hire_year DESC;
+
+-- Determine how many employees with 5+ years with company
+SELECT 
+    COUNT(*) AS num_employees_with_5years 
+FROM EMPLOYEE_TRANSFORMED
+WHERE DATEDIFF(YEAR, HIRE_DATE, CURRENT_DATE) > 5;

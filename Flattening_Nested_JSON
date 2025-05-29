@@ -1,0 +1,321 @@
+/*
+
+{
+    "university": {
+        "faculty of engineering": {
+            "dean": "Dr. Emily Carter",
+            "departments": {
+                "computer science": {
+                    "head": "Dr. Alan Turing",
+                    "courses": {
+                        "algorithms": {
+                            "credits": 4,
+                            "enrolled_students": 120
+                        },
+                        "machine learning": {
+                            "credits": 3,
+                            "enrolled_students": 90
+                        }
+                    }
+                },
+                "mechanical engineering": {
+                    "head": "Dr. Grace Hopper",
+                    "courses": {
+                        "thermodynamics": {
+                            "credits": 4,
+                            "enrolled_students": 80
+                        },
+                        "fluid mechanics": {
+                            "credits": 3,
+                            "enrolled_students": 75
+                        }
+                    }
+                }
+            },
+            "total_students": 1000,
+            "total_courses": 4
+        },
+        "faculty of science": {
+            "dean": "Dr. Carl Sagan",
+            "departments": {
+                "physics": {
+                    "head": "Dr. Richard Feynman",
+                    "courses": {
+                        "quantum mechanics": {
+                            "credits": 4,
+                            "enrolled_students": 70
+                        },
+                        "classical mechanics": {
+                            "credits": 4,
+                            "enrolled_students": 80
+                        }
+                    }
+                },
+                "biology": {
+                    "head": "Dr. Jane Goodall",
+                    "courses": {
+                        "genetics": {
+                            "credits": 3,
+                            "enrolled_students": 100
+                        },
+                        "ecology": {
+                            "credits": 3,
+                            "enrolled_students": 90
+                        }
+                    }
+                }
+            },
+            "total_students": 700,
+            "total_courses": 4
+        }
+    },
+    "name": "Central University",
+    "total_students": 1700,
+    "total_courses": 8
+}
+
+*/
+
+USE SCHEMA JSON_DB.PUBLIC;
+
+-- create a JSON table with multiple nesting
+CREATE OR REPLACE TABLE nested_json_table
+(
+data VARIANT
+);
+
+-- Load the JSON file into the table
+INSERT INTO nested_json_table (data)
+SELECT(PARSE_JSON('{
+    "university": {
+        "faculty of engineering": {
+            "dean": "Dr. Emily Carter",
+            "departments": {
+                "computer science": {
+                    "head": "Dr. Alan Turing",
+                    "courses": {
+                        "algorithms": {
+                            "credits": 4,
+                            "enrolled_students": 120
+                        },
+                        "machine learning": {
+                            "credits": 3,
+                            "enrolled_students": 90
+                        }
+                    }
+                },
+                "mechanical engineering": {
+                    "head": "Dr. Grace Hopper",
+                    "courses": {
+                        "thermodynamics": {
+                            "credits": 4,
+                            "enrolled_students": 80
+                        },
+                        "fluid mechanics": {
+                            "credits": 3,
+                            "enrolled_students": 75
+                        }
+                    }
+                }
+            },
+            "total_students": 1000,
+            "total_courses": 4
+        },
+        "faculty of science": {
+            "dean": "Dr. Carl Sagan",
+            "departments": {
+                "physics": {
+                    "head": "Dr. Richard Feynman",
+                    "courses": {
+                        "quantum mechanics": {
+                            "credits": 4,
+                            "enrolled_students": 70
+                        },
+                        "classical mechanics": {
+                            "credits": 4,
+                            "enrolled_students": 80
+                        }
+                    }
+                },
+                "biology": {
+                    "head": "Dr. Jane Goodall",
+                    "courses": {
+                        "genetics": {
+                            "credits": 3,
+                            "enrolled_students": 100
+                        },
+                        "ecology": {
+                            "credits": 3,
+                            "enrolled_students": 90
+                        }
+                    }
+                }
+            },
+            "total_students": 700,
+            "total_courses": 4
+        }
+    },
+    "name": "Central University",
+    "total_students": 1700,
+    "total_courses": 8
+}'));
+
+SELECT * FROM nested_json_table;
+
+SELECT 
+data
+FROM nested_json_table;
+
+SELECT
+data:name::string AS university_name,
+data:total_courses::integer AS number_of_courses,
+data:total_students::integer AS number_of_students,
+data:university::string AS University,
+FROM nested_json_table;
+
+
+-- lateral flattening of the university key
+SELECT
+data:name::string AS university_name,
+data:total_courses::integer AS number_of_courses,
+data:total_students::integer AS number_of_students,
+university.*
+FROM nested_json_table,
+LATERAL FLATTEN (input=>data:university) AS university;
+
+
+SELECT
+data:name::string AS university_name,
+data:total_courses::integer AS number_of_courses,
+data:total_students::integer AS number_of_students,
+university.key::string AS faculty_name,
+university.value:dean::string AS faculty_dean,
+university.value:departments,
+FROM nested_json_table,
+LATERAL FLATTEN (input=>data:university) AS university;
+
+-- flattening the department key
+SELECT
+data:name::string AS university_name,
+data:total_courses::integer AS number_of_courses,
+data:total_students::integer AS number_of_students,
+university.key::string AS faculty_name,
+university.value:dean::string AS faculty_dean,
+departments.*
+FROM nested_json_table,
+LATERAL FLATTEN (input=>data:university) AS university,
+LATERAL FLATTEN (input=>university.value:departments) AS departments;
+
+SELECT
+data:name::string AS university_name,
+data:total_courses::integer AS number_of_courses,
+data:total_students::integer AS number_of_students,
+university.key::string AS faculty_name,
+university.value:dean::string AS faculty_dean,
+departments.key::string AS departments,
+FROM nested_json_table,
+LATERAL FLATTEN (input=>data:university) AS university,
+LATERAL FLATTEN (input=>university.value:departments) AS departments;
+
+SELECT
+data:name::string AS university_name,
+data:total_courses::integer AS number_of_courses,
+data:total_students::integer AS number_of_students,
+university.key::string AS faculty_name,
+university.value:dean::string AS faculty_dean,
+departments.key::string AS departments,
+departments.value,
+FROM nested_json_table,
+LATERAL FLATTEN (input=>data:university) AS university,
+LATERAL FLATTEN (input=>university.value:departments) AS departments;
+
+SELECT
+data:name::string AS university_name,
+data:total_courses::integer AS number_of_courses,
+data:total_students::integer AS number_of_students,
+university.key::string AS faculty_name,
+university.value:dean::string AS faculty_dean,
+departments.key::string AS departments,
+departments.value:head::string AS department_head,
+FROM nested_json_table,
+LATERAL FLATTEN (input=>data:university) AS university,
+LATERAL FLATTEN (input=>university.value:departments) AS departments;
+
+SELECT
+data:name::string AS university_name,
+data:total_courses::integer AS number_of_courses,
+data:total_students::integer AS number_of_students,
+university.key::string AS faculty_name,
+university.value:dean::string AS faculty_dean,
+departments.key::string AS departments,
+departments.value:head::string AS department_head,
+departments.value:courses,
+FROM nested_json_table,
+LATERAL FLATTEN (input=>data:university) AS university,
+LATERAL FLATTEN (input=>university.value:departments) AS departments;
+
+SELECT
+data:name::string AS university_name,
+data:total_courses::integer AS number_of_courses,
+data:total_students::integer AS number_of_students,
+university.key::string AS faculty_name,
+university.value:dean::string AS faculty_dean,
+departments.key::string AS departments,
+departments.value:head::string AS department_head,
+courses.*
+FROM nested_json_table,
+LATERAL FLATTEN (input=>data:university) AS university,
+LATERAL FLATTEN (input=>university.value:departments) AS departments,
+LATERAL FLATTEN (input=>departments.value:courses) AS courses;
+
+-- flattening courses key
+SELECT
+data:name::string AS university_name,
+data:total_courses::integer AS number_of_courses,
+data:total_students::integer AS number_of_students,
+university.key::string AS faculty_name,
+university.value:dean::string AS faculty_dean,
+departments.key::string AS departments,
+departments.value:head::string AS department_head,
+courses.key::string AS department_courses,
+courses.value,
+FROM nested_json_table,
+LATERAL FLATTEN (input=>data:university) AS university,
+LATERAL FLATTEN (input=>university.value:departments) AS departments,
+LATERAL FLATTEN (input=>departments.value:courses) AS courses;
+
+SELECT
+data:name::string AS university_name,
+data:total_courses::integer AS number_of_courses,
+data:total_students::integer AS number_of_students,
+university.key::string AS faculty_name,
+university.value:dean::string AS faculty_dean,
+departments.key::string AS departments,
+departments.value:head::string AS department_head,
+courses.key::string AS department_courses,
+courses.value:credits::integer AS course_credits,
+courses.value:enrolled_students::integer AS course_num_students,
+FROM nested_json_table,
+LATERAL FLATTEN (input=>data:university) AS university,
+LATERAL FLATTEN (input=>university.value:departments) AS departments,
+LATERAL FLATTEN (input=>departments.value:courses) AS courses;
+
+-- create nad load a flattened table
+CREATE OR REPLACE TABLE nested_json_table_flatten AS
+SELECT
+data:name::string AS university_name,
+data:total_courses::integer AS number_of_courses,
+data:total_students::integer AS number_of_students,
+university.key::string AS faculty_name,
+university.value:dean::string AS faculty_dean,
+departments.key::string AS departments,
+departments.value:head::string AS department_head,  
+courses.key::string AS department_courses,
+courses.value:credits::integer AS course_credits,
+courses.value:enrolled_students::integer AS course_num_students,
+FROM nested_json_table,
+LATERAL FLATTEN (input=>data:university) AS university,
+LATERAL FLATTEN (input=>university.value:departments) AS departments,
+LATERAL FLATTEN (input=>departments.value:courses) AS courses;
+
+SELECT * FROM nested_json_table_flatten;

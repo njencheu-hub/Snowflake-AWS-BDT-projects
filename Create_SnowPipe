@@ -1,0 +1,51 @@
+-- Set the Roles, Warehouse, and Databases
+USE ROLE ACCOUNTADMIN;
+
+USE WAREHOUSE COMPUTE_WH;
+
+USE SCHEMA MYDB.MYSCHEMA;
+
+-- Create an Event table
+CREATE OR REPLACE TABLE event (
+event VARIANT
+);
+
+-- Create a storage integration with s3 and IAM role
+CREATE OR REPLACE STORAGE INTEGRATION s3_snowpipe_int
+TYPE = EXTERNAL_STAGE
+STORAGE_PROVIDER = 'S3'
+ENABLED = TRUE
+STORAGE_AWS_ROLE_ARN = 'arn:aws:iam::505999909011:role/snowpiperole'
+STORAGE_ALLOWED_LOCATIONS = ('s3://georgie-dea-bucket/event/');
+
+-- Describe the storage integration
+DESC INTEGRATION s3_snowpipe_int;
+
+-- Create JSON file format
+CREATE OR REPLACE FILE FORMAT my_json_format
+TYPE = 'JSON';
+
+-- Create an external s3 stage
+CREATE OR REPLACE STAGE my_s3_snowpipe_stage
+STORAGE_INTEGRATION = s3_snowpipe_int
+URL = 's3://georgie-dea-bucket/event/'
+FILE_FORMAT = my_json_format;
+
+-- Access the external stage
+list @my_s3_snowpipe_stage;
+
+-- Create a snowpipe to load the event data from s3
+CREATE OR REPLACE PIPE s3_pipe
+AUTO_INGEST = TRUE AS
+COPY INTO event
+FROM @my_s3_snowpipe_stage
+FILE_FORMAT = (FORMAT_NAME = my_json_format);
+
+-- Select the status of the pipe
+SELECT SYSTEM$PIPE_STATUS('s3_pipe');
+
+-- Get the notification channel
+SHOW PIPES;
+
+-- Select data from table
+SELECT * FROM event;

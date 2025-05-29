@@ -1,0 +1,80 @@
+/*
+{
+    "name": "John Doe",
+    "age": 31,
+    "is_student": TRUE,
+    "address": {
+        "street": "1050 Natalie Ave",
+        "city": "Buffalo",
+        "State":  "New York",
+        "zip": "60723"   
+    }
+
+}
+*/
+
+USE SCHEMA JSON_DB.PUBLIC;
+
+-- Create JSON table with column: data
+CREATE OR REPLACE TABLE json_table_h1
+(
+data VARIANT
+);
+
+-- insert JSON file into the table
+INSERT INTO json_table_h1 (data)
+SELECT(PARSE_JSON('{
+    "name": "John Doe",
+    "age": 31,
+    "is_student": TRUE,
+    "address": {
+        "street": "1050 Natalie Ave",
+        "city": "Buffalo",
+        "state":  "New York",
+        "zip": "60723"   
+    }
+
+}'));
+
+SELECT * FROM json_table_h1;
+
+-- flatten table
+SELECT 
+data: name,
+data: age,
+data: is_student,
+-- data: address
+FROM json_table_h1;
+
+-- include headers
+SELECT 
+data: name::string AS name,
+data: age::integer AS age,
+data: is_student::boolean AS is_student_flag,
+-- data: address
+FROM json_table_h1;
+
+-- include the json_address
+SELECT 
+data: name::string AS name,
+data: age::integer AS age,
+data: is_student::boolean AS is_student_flag,
+data:address:street::string AS street,
+data:address:city::string AS city,
+data:address:state::string AS state,
+data:address:zip::string AS zip
+FROM json_table_h1;
+
+-- create flatten json_table
+CREATE OR REPLACE TABLE json_table_h1_flatten AS
+SELECT 
+data: name::string AS name,
+data: age::integer AS age,
+data: is_student::boolean AS is_student_flag,
+data:address:street::string AS street,
+data:address:city::string AS city,
+data:address:state::string AS state,
+data:address:zip::string AS zip
+FROM json_table_h1;
+
+SELECT * FROM json_table_h1_flatten;

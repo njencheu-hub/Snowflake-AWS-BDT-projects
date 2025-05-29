@@ -1,0 +1,98 @@
+/*
+
+[
+    {
+        "id": 1,
+        "name": "Alice Johnson",
+        "position": "Software Engineer",
+        "department": "IT",
+        "salary": 75000
+    },
+    {
+        "id": 2,
+        "name": "Bob Smith",
+        "position": "Product Manager",
+        "department": "Product",
+        "salary": 85000
+    },
+    {
+        "id": 3,
+        "name": "Carol Lee",
+        "position": "UX Designer",
+        "department": "Design",
+        "salary": 70000
+    }
+]
+
+*/
+
+USE SCHEMA JSON_DB.PUBLIC;
+
+-- create an array table with multiple json files
+CREATE OR REPLACE TABLE array_table
+(
+data VARIANT
+);
+
+-- load table with array of json files
+INSERT INTO array_table (data)
+SELECT(PARSE_JSON('[
+    {
+        "id": 1,
+        "name": "Alice Johnson",
+        "position": "Software Engineer",
+        "department": "IT",
+        "salary": 75000
+    },
+    {
+        "id": 2,
+        "name": "Bob Smith",
+        "position": "Product Manager",
+        "department": "Product",
+        "salary": 85000
+    },
+    {
+        "id": 3,
+        "name": "Carol Lee",
+        "position": "UX Designer",
+        "department": "Design",
+        "salary": 70000
+    }
+]'));
+
+SELECT * FROM array_table;
+
+-- flatten table
+SELECT
+tmp.*
+FROM array_table,
+LATERAL FLATTEN(input=>data) AS tmp;
+
+-- flatten table
+SELECT
+tmp.value
+FROM array_table,
+LATERAL FLATTEN(input=>data) AS tmp;
+
+-- flatten table
+SELECT
+tmp.value:id::integer AS employee_id,
+tmp.value:name::string AS employee_name,
+tmp.value:position::string AS employee_position,
+tmp.value:department::string AS employee_dept,
+tmp.value:salary::integer AS employee_salary
+FROM array_table,
+LATERAL FLATTEN(input=>data) AS tmp;
+
+-- create and load a flattened table
+CREATE OR REPLACE TABLE array_table_flatten AS
+SELECT
+tmp.value:id::integer AS employee_id,
+tmp.value:name::string AS employee_name,
+tmp.value:position::string AS employee_position,
+tmp.value:department::string AS employee_dept,
+tmp.value:salary::integer AS employee_salary
+FROM array_table,
+LATERAL FLATTEN(input=>data) AS tmp;
+
+SELECT * FROM array_table_flatten;

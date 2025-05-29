@@ -1,0 +1,25 @@
+-- JSON file example
+-- JavaScript Object Notation
+
+{
+    "name": "Alice", 
+    "age": 30, 
+    "city": "New York"
+}
+
+//Create Database
+CREATE OR REPLACE DATABASE json_db;
+
+//Create a table under the public schema in json_db
+CREATE OR REPLACE TABLE JSON_DB.PUBLIC.json_table
+(
+data VARIANT
+);
+
+USE SCHEMA JSON_DB.PUBLIC;
+
+//Insert the JSON file into the json_table on the data column 
+INSERT INTO json_table (data)
+SELECT(PARSE_JSON('{"name": "Alice", "age": 30, "city": "New York"}'));
+
+SELECT * FROM json_table;

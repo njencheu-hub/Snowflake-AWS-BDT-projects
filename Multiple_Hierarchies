@@ -1,0 +1,271 @@
+/*
+
+{
+    "company": {
+        "id": 201,
+        "department": {
+            "name": "Engineering",
+            "head": "Jane Smith"
+        },
+        "teams": [
+            {
+                "team_name": "Frontend",
+                "members": [
+                    {
+                        "name": "Alice Brown",
+                        "role": "UI Developer",
+                        "skills": [
+                            {
+                                "experience": 10,
+                                "technology": ["HTML","CSS","JavaScript","React"]
+                            }
+                        ]
+                    },
+                    {
+                        "name": "Bob Green",
+                        "role": "UX Designer",
+                        "skills": [
+                            {
+                                "experience": 7,
+                                "technology": ["Figma","Sketch","Adobe XD","Illustrator"]
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "team_name": "Backend",
+                "members": [
+                    {
+                        "name": "Charlie White",
+                        "role": "Backend Engineer",
+                        "skills": [
+                            {
+                                "experience": 15,
+                                "technology": ["Python","Django","PostgreSQL","Redis"]
+                            }
+                        ]
+                    },
+                    {
+                        "name": "David Black",
+                        "role": "DevOps Engineer",
+                        "skills": [
+                            {
+                                "experience": 10,
+                                "technology": ["AWS","Docker","Kubernetes","Terraform"]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}
+
+*/
+
+USE SCHEMA JSON_DB.PUBLIC;
+
+-- create a JSON table with multiple hierarchies
+CREATE OR REPLACE TABLE json_table_multi_h
+(
+data VARIANT
+);
+
+-- Load the JSON file into the table
+INSERT INTO json_table_multi_h (data)
+SELECT(PARSE_JSON('{
+    "company": {
+        "id": 201,
+        "department": {
+            "name": "Engineering",
+            "head": "Jane Smith"
+        },
+        "teams": [
+            {
+                "team_name": "Frontend",
+                "members": [
+                    {
+                        "name": "Alice Brown",
+                        "role": "UI Developer",
+                        "skills": [
+                            {
+                                "experience": 10,
+                                "technology": ["HTML","CSS","JavaScript","React"]
+                            }
+                        ]
+                    },
+                    {
+                        "name": "Bob Green",
+                        "role": "UX Designer",
+                        "skills": [
+                            {
+                                "experience": 7,
+                                "technology": ["Sigma","Sketch","Adobe XD","Illustrator"]
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "team_name": "Backend",
+                "members": [
+                    {
+                        "name": "Charlie White",
+                        "role": "Backend Engineer",
+                        "skills": [
+                            {
+                                "experience": 15,
+                                "technology": ["Python","Django","PostgreSQL","Redis"]
+                            }
+                        ]
+                    },
+                    {
+                        "name": "David Black",
+                        "role": "DevOps Engineer",
+                        "skills": [
+                            {
+                                "experience": 10,
+                                "technology": ["AWS","Docker","Kubernetes","Terraform"]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}'));
+
+SELECT * FROM json_table_multi_h;
+
+-- flatten
+SELECT 
+data:company:id::integer AS company_id,
+data:company:department:name::string AS dept_name,
+data:company:department:head::string AS dept_head,
+data:company:teams
+FROM json_table_multi_h;
+
+-- flatten teams array
+SELECT 
+data:company:id::integer AS company_id,
+data:company:department:name::string AS dept_name,
+data:company:department:head::string AS dept_head,
+teams.value
+FROM json_table_multi_h,
+LATERAL FLATTEN (input=>data:company:teams) AS teams;
+
+-- flatten members array
+SELECT 
+data:company:id::integer AS company_id,
+data:company:department:name::string AS dept_name,
+data:company:department:head::string AS dept_head,
+teams.value:team_name::string AS team,
+teams.value:members
+FROM json_table_multi_h,
+LATERAL FLATTEN (input=>data:company:teams) AS teams;
+
+
+-- flatten members array
+SELECT 
+data:company:id::integer AS company_id,
+data:company:department:name::string AS dept_name,
+data:company:department:head::string AS dept_head,
+teams.value:team_name::string AS team,
+members.value
+FROM json_table_multi_h,
+LATERAL FLATTEN (input=>data:company:teams) AS teams,
+LATERAL FLATTEN (input=>teams.value:members) AS members;
+
+-- flatten members array
+SELECT 
+data:company:id::integer AS company_id,
+data:company:department:name::string AS dept_name,
+data:company:department:head::string AS dept_head,
+teams.value:team_name::string AS team,
+members.value:name::string AS member_name,
+members.value:role::string AS member_role,
+members.value:skills,
+FROM json_table_multi_h,
+LATERAL FLATTEN (input=>data:company:teams) AS teams,
+LATERAL FLATTEN (input=>teams.value:members) AS members;
+
+-- flatten members array
+SELECT 
+data:company:id::integer AS company_id,
+data:company:department:name::string AS dept_name,
+data:company:department:head::string AS dept_head,
+teams.value:team_name::string AS team,
+members.value:name::string AS member_name,
+members.value:role::string AS member_role,
+skills.value
+FROM json_table_multi_h,
+LATERAL FLATTEN (input=>data:company:teams) AS teams,
+LATERAL FLATTEN (input=>teams.value:members) AS members,
+LATERAL FLATTEN (input=>members.value:skills) AS skills;
+
+-- flatten members array
+SELECT 
+data:company:id::integer AS company_id,
+data:company:department:name::string AS dept_name,
+data:company:department:head::string AS dept_head,
+teams.value:team_name::string AS team,
+members.value:name::string AS member_name,
+members.value:role::string AS member_role,
+skills.value:experience::integer AS experience,
+skills.value:technology,
+FROM json_table_multi_h,
+LATERAL FLATTEN (input=>data:company:teams) AS teams,
+LATERAL FLATTEN (input=>teams.value:members) AS members,
+LATERAL FLATTEN (input=>members.value:skills) AS skills;
+
+-- flatten members array
+SELECT 
+data:company:id::integer AS company_id,
+data:company:department:name::string AS dept_name,
+data:company:department:head::string AS dept_head,
+teams.value:team_name::string AS team,
+members.value:name::string AS member_name,
+members.value:role::string AS member_role,
+skills.value:experience::integer AS experience_years,
+technology.value
+FROM json_table_multi_h,
+LATERAL FLATTEN (input=>data:company:teams) AS teams,
+LATERAL FLATTEN (input=>teams.value:members) AS members,
+LATERAL FLATTEN (input=>members.value:skills) AS skills,
+LATERAL FLATTEN (input=>skills.value:technology) AS technology;
+
+-- flatten members array
+SELECT 
+data:company:id::integer AS company_id,
+data:company:department:name::string AS dept_name,
+data:company:department:head::string AS dept_head,
+teams.value:team_name::string AS team,
+members.value:name::string AS member_name,
+members.value:role::string AS member_role,
+skills.value:experience::integer AS experience_years,
+technology.value::string AS technology
+FROM json_table_multi_h,
+LATERAL FLATTEN (input=>data:company:teams) AS teams,
+LATERAL FLATTEN (input=>teams.value:members) AS members,
+LATERAL FLATTEN (input=>members.value:skills) AS skills,
+LATERAL FLATTEN (input=>skills.value:technology) AS technology;
+
+-- load values to a flattened table
+CREATE OR REPLACE TABLE json_table_multi_h_flatten AS
+SELECT 
+data:company:id::integer AS company_id,
+data:company:department:name::string AS dept_name,
+data:company:department:head::string AS dept_head,
+teams.value:team_name::string AS team,
+members.value:name::string AS member_name,
+members.value:role::string AS member_role,
+skills.value:experience::integer AS experience_years,
+technology.value::string AS technology
+FROM json_table_multi_h,
+LATERAL FLATTEN (input=>data:company:teams) AS teams,
+LATERAL FLATTEN (input=>teams.value:members) AS members,
+LATERAL FLATTEN (input=>members.value:skills) AS skills,
+LATERAL FLATTEN (input=>skills.value:technology) AS technology;
+
+SELECT * FROM json_table_multi_h_flatten;

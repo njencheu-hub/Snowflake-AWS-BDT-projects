@@ -1,0 +1,139 @@
+/*
+Recover Accidentally Deleted Data using Time Travel Feature
+
+Problem Statement
+An analyst accidentally deletes a record from the EMPLOYEE table. 
+The deleted data is critical for business, and the team needs 
+to recover it without downtime or backup restoration.
+
+Project Overview
+In this mini project, you will:
+Learn how we can use the time travel feature of Snowflake 
+to recover the accidentally deleted data from the table 
+without performing a backup or downtime
+
+Use the time travel feature of offset to recover deleted data
+
+Tools/Technologies Used
+Snowflake: Cloud-based data warehouse
+Snowflake Web UI: SQL execution environment
+*/
+
+USE ROLE ACCOUNTADMIN;
+USE WAREHOUSE COMPUTE_WH;
+
+/*
+Create a Database & Schema
+
+Database : TIMETRAVELNEW_DB
+Schema : TIMETRAVELNEW_DATA
+*/
+
+CREATE OR REPLACE DATABASE TIMETRAVELNEW_DB;
+CREATE OR REPLACE SCHEMA TIMETRAVELNEW_DATA;
+
+/*
+Create EMPLOYEE Table in the IMETRAVELNEW_DATA schema
+
+Table : 
+Database: TIMETRAVELNEW_DB
+Schema: TIMETRAVELNEW_DATA 
+Name: EMPLOYEE
+
+Table structure
+EMPLOYEE_ID STRING
+FIRST_NAME STRING
+LAST_NAME STRING
+DEPARTMENT STRING
+SALARY FLOAT
+HIRE_DATE DATE
+*/
+
+CREATE OR REPLACE TABLE TIMETRAVELNEW_DB.TIMETRAVELNEW_DATA.EMPLOYEE
+(
+EMPLOYEE_ID STRING,
+FIRST_NAME STRING,
+LAST_NAME STRING,
+DEPARTMENT STRING,
+SALARY FLOAT,
+HIRE_DATE DATE
+);
+
+/*
+Populate the Table
+Insert the below data in the above EMPLOYEE table by running the following insert statement
+*/
+
+INSERT INTO TIMETRAVELNEW_DB.TIMETRAVELNEW_DATA.EMPLOYEE 
+VALUES 
+('E1', 'John', 'Doe', 'Finance', 75000.50, '2020-01-15'), 
+('E2', 'Jane', 'Smith', 'HR', 68000.00, '2018-03-20'), 
+('E3', 'Alice', 'Johnson', 'IT', 92000.75, '2019-07-10'),
+('E4', 'Bob', 'Williams', 'Sales', 58000.25, '2021-06-01'), 
+('E5', 'Charlie', 'Brown', 'Marketing', 72000.00, '2022-04-22'), 
+('E6', 'Emily', 'Davis', 'IT', 89000.10, '2017-11-12'), 
+('E7', 'Frank', 'Miller', 'Finance', 83000.30, '2016-09-05'), 
+('E8', 'Grace', 'Taylor', 'Sales', 61000.45, '2023-02-11'),
+('E9', 'Hannah', 'Moore', 'HR', 67000.80, '2020-05-18'), 
+('E10', 'Jack', 'White', 'Marketing', 70000.90, '2019-12-25');
+
+/*
+View the Current Data in the EMPLOYEE table
+Retrieve all records to confirm the EMPLOYEE table's content by running the select query
+*/
+
+SELECT * FROM TIMETRAVELNEW_DB.TIMETRAVELNEW_DATA.EMPLOYEE;
+
+/*
+Simulate Data Deletion 
+Delete EMPLOYEE_ID E2 and E7 records from the EMPLOYEE table to simulate accidental deletion by running a delete query.
+*/
+
+DELETE FROM TIMETRAVELNEW_DB.TIMETRAVELNEW_DATA.EMPLOYEE
+WHERE EMPLOYEE_ID IN ('E2','E7');
+
+
+/*
+Verify the Deletion
+Could you check the EMPLOYEE table's content by running the select query to make sure the record is deleted?
+*/
+
+SELECT * FROM TIMETRAVELNEW_DB.TIMETRAVELNEW_DATA.EMPLOYEE;
+
+/*
+Fetch the QUERY_ID of the DELETE statement
+
+Fetch the QUERY_ID of the previous executed DELETE statement from the SNOWFLAKE QUERY_HISTORY table
+*/
+
+-- Query_ID = 01bc3609-020d-441f-000e-1563000769ae
+
+/*
+Recovering Deleted Data
+
+Use Time Travel to Access Historical Data
+To retrieve the deleted record, query the EMPLOYEE table's state just before the deletion by using the time travel feature of Snowflake
+
+Check the below snowflake Time Travel tutorial for reference: https://my.dataengineeracademy.com/mod/url/view.php?id=631
+*/
+
+SELECT * FROM TIMETRAVELNEW_DB.TIMETRAVELNEW_DATA.EMPLOYEE
+BEFORE(STATEMENT => '01bc3609-020d-441f-000e-1563000769ae');
+
+/*
+Recover the Deleted Record
+
+To restore the deleted record, insert it back into the table by running the insert command
+*/
+
+INSERT INTO TIMETRAVELNEW_DB.TIMETRAVELNEW_DATA.EMPLOYEE 
+VALUES  
+('E2', 'Jane', 'Smith', 'HR', 68000.00, '2018-03-20'),
+('E7', 'Frank', 'Miller', 'Finance', 83000.30, '2016-09-05');
+/*
+Verify the Recovery
+
+Query the EMPLOYEE table again to confirm the record is restored.
+*/
+
+SELECT * FROM TIMETRAVELNEW_DB.TIMETRAVELNEW_DATA.EMPLOYEE;

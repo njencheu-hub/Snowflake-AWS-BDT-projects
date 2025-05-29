@@ -1,0 +1,85 @@
+USE SCHEMA SCD2_DB.BRONZE;
+ 
+CREATE STORAGE INTEGRATION snowflake_scd2_storage_s3
+  TYPE = EXTERNAL_STAGE
+  STORAGE_PROVIDER = 'S3'
+  ENABLED = TRUE
+  STORAGE_AWS_ROLE_ARN = 'arn:aws:iam::505999909011:role/snowflake_scd2_role'
+  STORAGE_ALLOWED_LOCATIONS = ('s3://snowflake-scd1-data/scd2_data/');
+  
+-- <iam_role> specifies the Amazon Resource Name (ARN) of the AWS IAM role you create using above steps.
+-- <s3://bucket/path/> specifies the AWS S3 Bucket folder path for the integration to point.
+-- <integration_name> specifies the name for the integration.
+
+
+-- Describe the integration to get the User_ARN and External_ID to create trust b/w Snowflake and s3
+DESC INTEGRATION snowflake_scd2_storage_s3;
+
+-- Create file format
+CREATE OR REPLACE FILE FORMAT MY_CSV_FORMAT
+  TYPE = CSV
+  FIELD_DELIMITER = ','
+  FIELD_OPTIONALLY_ENCLOSED_BY = '"'
+  SKIP_HEADER = 1
+  NULL_IF = ('NULL', 'null')
+  EMPTY_FIELD_AS_NULL = true;
+
+--   Execute the final step of creating the stage
+  CREATE STAGE scd2_s3_stage
+  STORAGE_INTEGRATION = snowflake_scd2_storage_s3
+  URL = 's3://snowflake-scd1-data/scd2_data/'
+  FILE_FORMAT = MY_CSV_FORMAT;
+
+-- test the stage
+ls @scd2_s3_stage;
+
+-- Create a landing table where data will be copied from s3 bucket
+
+CREATE OR REPLACE TABLE SCD2_DB.BRONZE.WORK_PRODUCT_COPY
+(
+    PRODUCT_ID VARCHAR(255) NOT NULL COLLATE 'en-ci'
+    ,PRODUCT_NAME VARCHAR(255) NOT NULL COLLATE 'en-ci'
+    ,CATEGORY VARCHAR(255) COLLATE 'en-ci'
+    ,SELLING_PRICE VARCHAR(50) COLLATE 'en-ci'
+    ,MODEL_NUMBER VARCHAR(50) COLLATE 'en-ci'
+    ,ABOUT_PRODUCT VARCHAR(5000) COLLATE 'en-ci'
+    ,PRODUCT_SPECIFICATION VARCHAR(5000) COLLATE 'en-ci'
+    ,TECHNICAL_DETAILS VARCHAR(50000) COLLATE 'en-ci'
+    ,SHIPPING_WEIGHT VARCHAR(30) COLLATE 'en-ci'
+    ,PRODUCT_DIMENSIONS VARCHAR(100) COLLATE 'en-ci'
+    ,INSERT_DTS TIMESTAMP_NTZ(6) NOT NULL
+    ,UPDATE_DTS TIMESTAMP_NTZ(6) NOT NULL
+    ,SOURCE_FILE_NAME VARCHAR(255) NOT NULL
+    ,SOURCE_FILE_ROW_NUMBER VARCHAR(255) NOT NULL
+);
+
+-- *****copied from 'dbt run' error terminal to test run here******
+SELECT
+    $1 AS ProductId,
+    $2 AS ProductName,
+    $3 AS Category,
+    $4 AS SellingPrice,
+    $5 AS ModelNumber,
+    $6 AS AboutProduct,
+    $7 AS ProductSpecification,
+    $8 AS TechnicalDetails,
+    $9 AS ShippingWeight,
+    $10 AS ProductDimensions,
+    CURRENT_TIMESTAMP() AS INSERT_DTS,
+    CURRENT_TIMESTAMP() AS UPDATE_DTS,
+    metadata$filename AS SOURCE_FILE_NAME,
+    metadata$file_row_number AS SOURCE_FILE_ROW_NUMBER
+FROM @SCD2_DB.BRONZE.SCD2_S3_STAGE/;
+
+-- after 'dbt run' at DBT is successful, check if the WORK_PRODUCT_COPY table now has data 
+SELECT * FROM SCD2_DB.BRONZE.WORK_PRODUCT_COPY LIMIT 5;
+
+-- after 'dbt snapshot' is run on DBT, check the newly created PRODUCT_SNAPSHOT table 
+SELECT * FROM PC_DBT_DB.SNAPSHOTS.PRODUCT_SNAPSHOT LIMIT 5;
+
+-- after 'dbt run' for the gold folder on DBT, check the newly created PRODUCT_VIEW table
+SELECT * FROM PC_DBT_DB.GOLD.PRODUCT_VIEW LIMIT 5;
+
+-- verify a specific row change from the demonstration process
+SELECT * FROM PC_DBT_DB.GOLD.PRODUCT_VIEW
+WHERE PRODUCT_ID = '4c69b61db1fc16e7013b43fc926e502d';

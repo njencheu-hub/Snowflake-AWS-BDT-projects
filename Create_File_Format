@@ -1,0 +1,51 @@
+-- Set the Roles, Warehouse, and Databases
+USE ROLE ACCOUNTADMIN;
+
+USE WAREHOUSE COMPUTE_WH;
+
+USE SCHEMA MYDB.MYSCHEMA;
+
+-- Create Student table
+CREATE OR REPLACE TABLE student (
+id INTEGER,
+name VARCHAR(50),
+age INTEGER,
+marks INTEGER 
+);
+
+-- Create a named stage
+CREATE OR REPLACE STAGE STUDENT_STAGE;
+
+-- Access the named internal stage
+list @STUDENT_STAGE;
+
+-- Load data to the student table
+COPY INTO student
+FROM @STUDENT_STAGE
+file_format = (TYPE = 'CSV' SKIP_HEADER = 1);
+
+-- Select data from the table
+SELECT * FROM student;
+
+-- Delete the student table and use another way
+TRUNCATE TABLE student
+
+-- Create CSV file format
+CREATE OR REPLACE FILE FORMAT CSV_FORMAT
+TYPE = 'CSV'
+FIELD_DELIMITER = ','
+RECORD_DELIMITER ='\n'
+SKIP_HEADER = 1;
+
+-- Load data to the student table with the file format
+COPY INTO student
+FROM @STUDENT_STAGE
+FILE_FORMAT = (FORMAT_NAME = CSV_FORMAT);
+
+-- Create JSON file format
+CREATE OR REPLACE FILE FORMAT JSON_FORMAT
+TYPE = 'JSON';
+
+-- Show the file formats you created
+
+SHOW FILE FORMATS;

@@ -1,0 +1,78 @@
+-- Set the Roles, Warehouse, and Databases
+USE ROLE ACCOUNTADMIN;
+
+USE WAREHOUSE COMPUTE_WH;
+
+USE SCHEMA MYDB.MYSCHEMA;
+
+-- ****Time Travel (Deleted Rows)*****
+CREATE OR REPLACE TABLE drop_table
+(
+    id INT,
+    name VARCHAR
+);
+
+INSERT INTO drop_table VALUES
+(1, 'John'),
+(2, 'Sam'),
+(3, 'Elan'),
+(4, 'Mark');
+
+SELECT * FROM drop_table;
+
+DELETE FROM drop_table WHERE id = 4;
+
+SELECT * FROM drop_table AT(OFFSET => -60*7);
+
+-- estimate time
+SHOW TABLES;
+ 
+SELECT * FROM drop_table AT(TIMESTAMP => '2025-05-05 05:22:48.372 -0700'::timestamp_tz);
+
+-- get stmt from query history (Query ID)
+SELECT * FROM drop_table BEFORE(STATEMENT => '01bc2506-020d-3539-000e-15630004f252');
+
+-- Restore the table by creating a clone
+CREATE OR REPLACE TABLE drop_table_clone AS
+SELECT * FROM drop_table BEFORE(STATEMENT => '01bc2506-020d-3539-000e-15630004f252');
+
+SELECT * FROM drop_table_clone;
+
+TRUNCATE TABLE drop_table;
+
+INSERT INTO drop_table
+SELECT * FROM drop_table_clone;
+
+
+-- ****Dropping table, schema, and database *****
+
+DROP TABLE drop_table;
+
+SELECT * FROM drop_table;
+
+UNDROP TABLE drop_table;
+
+DROP SCHEMA MYSCHEMA;
+
+UNDROP SCHEMA MYSCHEMA;
+
+DROP DATABASE MYDB;
+
+UNDROP DATABASE MYDB;
+
+USE SCHEMA MYDB.MYSCHEMA;
+
+-- check retention_time on databases (default 1 day)
+SHOW DATABASES;
+
+-- check retention_time on schemas
+SHOW SCHEMAS;
+
+-- check retention_time on tables
+SHOW TABLES;
+
+-- change default retention time
+ALTER TABLE drop_table 
+SET DATA_RETENTION_TIME_IN_DAYS = 30;
+
+SHOW TABLES;
